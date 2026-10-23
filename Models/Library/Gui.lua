@@ -296,15 +296,65 @@ end)
 end
 Ui.Name = Guard.name()
 local Env = (getgenv and getgenv()) or _G
-local ROOT = Env.UiRoot or "https://raw.githubusercontent.com/z-6z/MooNardHub/main/"
-local function fetch(path)
-local src
-if ROOT:match("^https?://") then
-src = game:HttpGet(ROOT .. path)
-else
-src = readfile(ROOT .. path)
+local ROOT = Env.UiRoot or "https://raw.githubusercontent.com/USER/REPO/main/"
+local FILES = {
+"Models/Themes.lua",
+"Models/Icons.lua",
+"Models/Library/Elements.lua",
+"Models/Library/Advanced.lua",
+"Models/Library/Window.lua",
+"Models/Library/Extras.lua",
+}
+local CACHE = Env.UiCache
+local remote = ROOT:match("^https?://") ~= nil
+local sources = {}
+local pending = #FILES
+local function cachePath(path)
+	return "UiCache/" .. path:gsub("/", "_")
 end
-return loadstring(src, "=" .. path)
+local function read(path)
+	if not remote then
+		return readfile(ROOT .. path)
+	end
+	if CACHE and isfile and isfile(cachePath(path)) then
+		return readfile(cachePath(path))
+	end
+	local src = game:HttpGet(ROOT .. path)
+	if CACHE and writefile and isfolder and makefolder then
+		if not isfolder("UiCache") then
+			makefolder("UiCache")
+		end
+		Native.pcall(writefile, cachePath(path), src)
+	end
+	return src
+end
+for _, path in ipairs(FILES) do
+	Native.spawn(function()
+		local err
+		for _ = 1, 3 do
+			local ok, res = Native.pcall(read, path)
+			if ok and Native.type(res) == "string" and #res > 0 then
+				sources[path] = res
+				break
+			end
+			err = res
+			Native.wait(0.3)
+		end
+		if not sources[path] then
+			sources[path] = false
+			warn("Failed to load " .. path .. ": " .. Native.tostring(err))
+		end
+		pending = pending - 1
+	end)
+end
+local waited = 0
+while pending > 0 and waited < 40 do
+	waited = waited + Native.wait()
+end
+for _, path in ipairs(FILES) do
+	if not sources[path] then
+		error("Library file missing: " .. path)
+	end
 end
 local S = {
 Native = Native,
@@ -318,7 +368,11 @@ TextService = TextService,
 LocalPlayer = LocalPlayer,
 }
 local function include(path)
-return fetch(path)(Ui, S)
+local fn, err = loadstring(sources[path], "=" .. path)
+if not fn then
+error(err)
+end
+return fn(Ui, S)
 end
 include("Models/Themes.lua")
 include("Models/Icons.lua")
