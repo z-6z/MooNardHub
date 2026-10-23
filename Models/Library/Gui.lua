@@ -296,7 +296,7 @@ end)
 end
 Ui.Name = Guard.name()
 local Env = (getgenv and getgenv()) or _G
-local ROOT = Env.UiRoot or "https://raw.githubusercontent.com/z-6z/MooNardHub/main/"
+local ROOT = Env.UiRoot or "https://raw.githubusercontent.com/USER/REPO/main/"
 local FILES = {
 "Models/Themes.lua",
 "Models/Icons.lua",
@@ -372,7 +372,10 @@ local fn, err = loadstring(sources[path], "=" .. path)
 if not fn then
 error(err)
 end
-return fn(Ui, S)
+Env.UiCtx = {Ui = Ui, S = S}
+local result = fn(Ui, S)
+Env.UiCtx = nil
+return result
 end
 include("Models/Themes.lua")
 include("Models/Icons.lua")
