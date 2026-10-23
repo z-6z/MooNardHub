@@ -1,4 +1,4 @@
-local Ui = ...
+local Ui = ((getgenv and getgenv()) or _G).UiCtx.Ui
 Ui.IconStyle = "lucide"
 Ui.Icons = {
 code = "code",

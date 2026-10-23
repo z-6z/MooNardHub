@@ -1,4 +1,4 @@
-local Ui = ...
+local Ui = ((getgenv and getgenv()) or _G).UiCtx.Ui
 Ui.Themes = {
 Dark = {
 Name = "Dark",
