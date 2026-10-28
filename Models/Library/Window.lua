@@ -165,6 +165,8 @@ TextColor3 = "Text",
 local nameTextWidth =
 TextService:GetTextSize(nameLbl.Text, nameLbl.TextSize, nameLbl.Font, Vector2.new(1000, 100)).X
 nameLbl.Size = UDim2.new(0, nameTextWidth + 2, 1, 0)
+nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+nameLbl.ClipsDescendants = true
 Guard.lock(self.gui, logoImg, {
 { "Image", Guard.logo },
 { "Visible", Guard.yes },
@@ -259,49 +261,37 @@ Name = "Detection",
 BackgroundTransparency = 1,
 AnchorPoint = Vector2.new(1, 0.5),
 Position = UDim2.new(1, -146, 0.5, 0),
-Size = UDim2.new(0, 0, 0, 28),
-AutomaticSize = Enum.AutomaticSize.X,
+Size = UDim2.new(0, 62, 0, 28),
 Parent = title,
 })
 local detectList = list(detect, Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Right)
 detectList.VerticalAlignment = Enum.VerticalAlignment.Center
 self.detection = detect
-local function detectCard(order)
+local function detectCard(order, icon)
 local c = new("TextButton", {
 Text = "",
 AutoButtonColor = false,
 LayoutOrder = order,
-Size = UDim2.new(0, 0, 0, 28),
-AutomaticSize = Enum.AutomaticSize.X,
+Size = UDim2.new(0, 28, 0, 28),
 BorderSizePixel = 0,
+ClipsDescendants = true,
 Parent = detect,
 })
 corner(c, 12)
 glass(c)
-if order == 1 and glassHover then
-glassHover(c)
+if order == 1 then
+if glassHover then glassHover(c) end
 ripple(c)
 end
-local pad = new("UIPadding", { Parent = c })
-pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 10), UDim.new(0, 10)
-local l = list(c, Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Left)
-l.VerticalAlignment = Enum.VerticalAlignment.Center
-local function lbl(text, font, color, o)
-return new("TextLabel", {
-Text = text,
-Font = font,
-TextSize = 11,
-BackgroundTransparency = 1,
-LayoutOrder = o,
-Size = UDim2.new(0, 0, 1, 0),
-AutomaticSize = Enum.AutomaticSize.X,
+local glyph = iconLabel({
+Icon = icon,
+AnchorPoint = Vector2.new(0, 0.5),
+Position = UDim2.new(0, 7, 0.5, 0),
+Size = UDim2.new(0, 14, 0, 14),
 Parent = c,
-Theme = {
-TextColor3 = color,
-},
+Theme = { ImageColor3 = "SubText" },
 })
-end
-return c, lbl
+return c, glyph
 end
 local execName = "Unknown"
 pcall(function()
@@ -311,25 +301,35 @@ local n = f()
 if n then execName = tostring(n) end
 end
 end)
-local execCard, execLbl = detectCard(0)
-execLbl("Executor", Enum.Font.Gotham, "SubText", 0)
-self.executorLabel = execLbl(execName, Enum.Font.GothamBold, "Text", 1)
-local discordLink = cfg.Discord or cfg.DiscordInvite or ""
+local execCard = detectCard(0, Ui.Icons.terminal or "terminal")
+self.executorLabel = new("TextLabel", {
+Text = execName,
+Font = Enum.Font.GothamBold,
+TextSize = 11,
+TextXAlignment = Enum.TextXAlignment.Left,
+TextTruncate = Enum.TextTruncate.AtEnd,
+BackgroundTransparency = 1,
+Position = UDim2.new(0, 27, 0, 0),
+Size = UDim2.new(1, -35, 1, 0),
+Parent = execCard,
+Theme = { TextColor3 = "Text" },
+})
+local discordLink = tostring(cfg.Discord or cfg.DiscordInvite or "")
 if discordLink ~= "" and not discordLink:find("://") then
 discordLink = "https://discord.gg/" .. discordLink
 end
-local dcCard, dcLbl = detectCard(1)
-local dcText = dcLbl("Discord", Enum.Font.GothamBold, "Text", 0)
+local discordIcon = Ui.Icons.discord or "users"
+local dcCard, dcIcon = detectCard(1, discordIcon)
 local dcBusy = false
-dcCard.MouseButton1Click:Connect(function()
+dcCard.Activated:Connect(function()
 if dcBusy then return end
 playClickSound()
 local clip = setclipboard or toclipboard or (Clipboard and Clipboard.set)
 local ok = discordLink ~= "" and clip and pcall(clip, discordLink)
 dcBusy = true
-dcText.Text = ok and "Copied!" or "No Link"
+dcIcon.Image = Ui.GetIcon(ok and "check" or "circle-alert")
 task.delay(1.5, function()
-dcText.Text = "Discord"
+if dcIcon.Parent then dcIcon.Image = Ui.GetIcon(discordIcon) end
 dcBusy = false
 end)
 end)
@@ -340,6 +340,42 @@ link = "https://discord.gg/" .. link
 end
 discordLink = link
 end
+local fittingHeader = false
+local function fitHeader()
+if fittingHeader or not root.Parent then return end
+fittingHeader = true
+local width = root.AbsoluteSize.X
+local buttonsWidth = math.max(122, winList.AbsoluteContentSize.X)
+local cardsRight = width - 14 - buttonsWidth - 10
+local execWidth = math.min(140, math.max(28, TextService:GetTextSize(self.executorLabel.Text, 11, Enum.Font.GothamBold, Vector2.new(10000, 100)).X + 35))
+local leftFull = 46 + nameTextWidth + 2 + 8 + verTextWidth + 10 + 30
+local fullCardsWidth = execWidth + 34
+local compact = self.minimized or cardsRight - fullCardsWidth - 10 < leftFull
+if compact then execWidth = 28 end
+self.executorLabel.Visible = not compact
+execCard.Size = UDim2.new(0, execWidth, 0, 28)
+local cardsWidth = execWidth + 34
+detect.Size = UDim2.new(0, cardsWidth, 0, 28)
+detect.Position = UDim2.new(1, -(14 + buttonsWidth + 10), 0.5, 0)
+local leftLimit = math.max(46, cardsRight - cardsWidth - 10)
+local detailsVisible = leftFull <= leftLimit
+verLbl.Visible = detailsVisible
+visHolder.Visible = detailsVisible
+nameLbl.Size = UDim2.new(0, math.max(0, math.min(nameTextWidth + 2, leftLimit - 46)), 1, 0)
+local leftEnd = detailsVisible and leftFull or (46 + nameLbl.Size.X.Offset)
+local navWidth = navList.AbsoluteContentSize.X
+local navStart = math.max(leftEnd + 10, (width - navWidth) / 2)
+nav.Visible = not self.minimized and navWidth > 0 and navStart + navWidth <= leftLimit
+nav.AnchorPoint = Vector2.new(0, 0.5)
+nav.Position = UDim2.new(0, navStart, 0.5, 0)
+fittingHeader = false
+end
+self._fitHeader = fitHeader
+root:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitHeader)
+winList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(fitHeader)
+navList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(fitHeader)
+self.executorLabel:GetPropertyChangedSignal("Text"):Connect(fitHeader)
+task.defer(fitHeader)
 local sideBtn = winBtn(Ui.Icons.tab, 0)
 self.sidebarButton = sideBtn
 sideBtn.MouseButton1Click:Connect(function()
@@ -1048,6 +1084,7 @@ return self.minimized
 end
 self._minBusy = true
 self.minimized = not self.minimized
+if self._fitHeader then self._fitHeader() end
 self:_closePopups()
 local root = self.root
 local absPos, absSize = root.AbsolutePosition, root.AbsoluteSize
@@ -1067,7 +1104,7 @@ self.nav.Visible = false
 end
 local need = 360
 if self.visHolder and self.winBtns then
-need = self.visHolder.Position.X.Offset + self.visHolder.Size.X.Offset + 24 + self.winBtns.AbsoluteSize.X + 14
+need = self.visHolder.Position.X.Offset + self.visHolder.Size.X.Offset + 10 + 62 + 10 + math.max(122, self.winBtns.AbsoluteSize.X) + 14
 end
 local w = math.min(absSize.X, math.max(260, need))
 local h = 46
@@ -1087,8 +1124,8 @@ Position = clampedPosition(root, target, absPos.X + target.X * ax, absPos.Y + ta
 task.delay(0.2, function()
 if not self.minimized then
 self.body.Visible = true
-if self.nav then
-self.nav.Visible = true
+if self._fitHeader then
+self._fitHeader()
 end
 if self.overlay then
 self.overlay.Visible = true
