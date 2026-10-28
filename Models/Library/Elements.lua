@@ -58,12 +58,14 @@ TextColor3 = "Text",
 and UDim2.new(1, -x - rw, 0, 18)
 or UDim2.new(1, -x - rw, 1, 0)
 if hasDesc then
-new("TextLabel", {
+local descBtn = new("TextButton", {
 Text = desc,
 Font = Enum.Font.Gotham,
 TextSize = 12,
 TextXAlignment = Enum.TextXAlignment.Left,
+TextYAlignment = Enum.TextYAlignment.Top,
 BackgroundTransparency = 1,
+AutoButtonColor = false,
 TextTruncate = Enum.TextTruncate.AtEnd,
 Position = UDim2.new(0, x, 0, 31),
 Size = UDim2.new(1, -x - rw, 0, 16),
@@ -72,6 +74,30 @@ Theme = {
 TextColor3 = "SubText",
 },
 })
+local expanded = false
+local baseH = row.Size.Y.Offset
+descBtn.MouseButton1Click:Connect(function()
+local w = row.AbsoluteSize.X - x - rw
+if w <= 0 then
+return
+end
+local full = S.TextService:GetTextSize(descBtn.Text, 12, Enum.Font.Gotham, Vector2.new(w, math.huge))
+if full.Y <= 16 then
+return
+end
+expanded = not expanded
+if expanded then
+descBtn.TextWrapped = true
+descBtn.TextTruncate = Enum.TextTruncate.None
+descBtn.Size = UDim2.new(1, -x - rw, 0, full.Y)
+row.Size = UDim2.new(1, 0, 0, baseH + full.Y - 16)
+else
+descBtn.TextWrapped = false
+descBtn.TextTruncate = Enum.TextTruncate.AtEnd
+descBtn.Size = UDim2.new(1, -x - rw, 0, 16)
+row.Size = UDim2.new(1, 0, 0, baseH)
+end
+end)
 end
 row:SetAttribute("SearchText", string.lower(tostring(title or "") .. " " .. tostring(desc or "")))
 return x
