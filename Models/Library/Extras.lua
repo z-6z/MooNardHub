@@ -271,19 +271,28 @@ end)
 if ok and type(data) == "table" then ConfigData = data end
 S.setClick(ConfigData.ClickSound ~= false)
 end
+local function writeNow()
+if not canFiles() then
+return
+end
+pcall(function()
+if typeof(isfolder) == "function" and typeof(makefolder) == "function" and not isfolder(CONFIG_FOLDER) then
+makefolder(CONFIG_FOLDER)
+end
+local ok, json = pcall(HttpService.JSONEncode, HttpService, ConfigData)
+if ok and json then
+writefile(CONFIG_FILE, json)
+end
+end)
+end
 local function saveConfig()
 if not canFiles() or saveQueued then
 return
 end
 saveQueued = true
-task.delay(0.5, function()
+task.delay(0.2, function()
 saveQueued = false
-pcall(function()
-if typeof(isfolder) == "function" and typeof(makefolder) == "function" and not isfolder(CONFIG_FOLDER) then
-makefolder(CONFIG_FOLDER)
-end
-writefile(CONFIG_FILE, HttpService:JSONEncode(ConfigData))
-end)
+writeNow()
 end)
 end
 loadConfig()
@@ -326,8 +335,52 @@ ConfigData.ConfigVersion = Ui.ConfigVersion
 saveConfig()
 end
 local function setFlag(key, value)
-ConfigData.Flags[key] = encodeValue(value)
+local enc = encodeValue(value)
+if ConfigData.Flags[key] == enc and type(enc) ~= "table" then
+return
+end
+ConfigData.Flags[key] = enc
 saveConfig()
+end
+local usedKeys = {}
+local function validate(method, opt, value)
+if method == "CreateToggle" or method == "CreateCheckbox" then
+if type(value) == "boolean" then return value end
+return nil
+elseif method == "CreateSlider" then
+local n = tonumber(value)
+if not n then return nil end
+return math.clamp(n, opt.Min or 0, opt.Max or 100)
+elseif method == "CreateInput" then
+return value ~= nil and tostring(value) or nil
+elseif method == "CreateDropdown" then
+if type(opt.Options) == "table" and #opt.Options > 0 then
+for _, o in ipairs(opt.Options) do
+if o == value or tostring(o) == tostring(value) then return o end
+end
+return nil
+end
+return value
+elseif method == "CreateMultiDropdown" then
+if type(value) ~= "table" then return nil end
+local res = {}
+local opts = type(opt.Options) == "table" and opt.Options or nil
+for _, v in ipairs(value) do
+if opts then
+for _, o in ipairs(opts) do
+if o == v or tostring(o) == tostring(v) then table.insert(res, o) break end
+end
+else
+table.insert(res, v)
+end
+end
+return res
+elseif method == "CreateColorPicker" then
+return typeof(value) == "Color3" and value or nil
+elseif method == "CreateKeybind" then
+return typeof(value) == "EnumItem" and value or nil
+end
+return value
 end
 local function wrapElement(method, cbName)
 local original = Section[method]
@@ -336,12 +389,25 @@ return
 end
 Section[method] = function(self, opt)
 opt = opt or {}
-local key = opt.Flag or (opt.Name and (method .. ":" .. tostring(opt.Name)))
-if key and opt.Save ~= false then
+if opt.Save == false then
+return original(self, opt)
+end
+local key = opt.Flag
+if not key and opt.Name then
+key = method .. ":" .. tostring(opt.Name)
+usedKeys[key] = (usedKeys[key] or 0) + 1
+if usedKeys[key] > 1 then
+key = key .. "#" .. usedKeys[key]
+end
+end
+if not key then
+return original(self, opt)
+end
+local restored = nil
 local saved = ConfigData.Flags[key]
 if saved ~= nil then
-local value = decodeValue(saved)
-if value ~= nil then opt.Default = value end
+restored = validate(method, opt, decodeValue(saved))
+if restored ~= nil then opt.Default = restored end
 end
 local userCb = opt[cbName]
 opt[cbName] = function(...)
@@ -350,8 +416,28 @@ if userCb then
 return userCb(...)
 end
 end
+local api = original(self, opt)
+if type(api) == "table" and type(api.Set) == "function" and method ~= "CreateInput" then
+local rawSet = api.Set
+api.Set = function(a, v, ...)
+local r = rawSet(a, v, ...)
+local ok, cur = pcall(function() return api:Get() end)
+setFlag(key, ok and cur ~= nil and cur or v)
+return r
 end
-return original(self, opt)
+end
+if restored ~= nil and userCb and opt.FireOnLoad ~= false then
+task.defer(function()
+if cbName == "Changed" then
+pcall(userCb, restored)
+elseif method == "CreateInput" then
+pcall(userCb, restored, false)
+else
+pcall(userCb, restored)
+end
+end)
+end
+return api
 end
 end
 wrapElement("CreateToggle", "Callback")
@@ -444,8 +530,17 @@ function Ui:GetClickSound()
 return S.getClick()
 end
 function Ui:SaveConfig()
-saveConfig()
+writeNow()
 end
+pcall(function()
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+if lp then
+Players.PlayerRemoving:Connect(function(p)
+if p == lp then writeNow() end
+end)
+end
+end)
 function Section:CreateConsole(opt)
 opt = opt or {}
 local maxLines = opt.MaxLines or 300

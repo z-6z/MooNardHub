@@ -24,8 +24,9 @@ BackgroundColor3 = "Stroke",
 line.Visible = section._count > 1
 return row
 end
-local function rowLabel(row, icon, title, desc)
+local function rowLabel(row, icon, title, desc, rightW)
 local x = 14
+local rw = rightW or (CTRL_W + 24)
 if icon then
 iconLabel({
 Icon = icon,
@@ -48,14 +49,14 @@ TextXAlignment = Enum.TextXAlignment.Left,
 BackgroundTransparency = 1,
 TextTruncate = Enum.TextTruncate.AtEnd,
 Position = UDim2.new(0, x, 0, hasDesc and 12 or 0),
-Size = UDim2.new(1, -x - 130, 0, hasDesc and 18 or 0),
+Size = UDim2.new(1, -x - rw, 0, hasDesc and 18 or 0),
 Parent = row,
 Theme = {
 TextColor3 = "Text",
 },
 }).Size = hasDesc
-and UDim2.new(1, -x - 130, 0, 18)
-or UDim2.new(1, -x - 130, 1, 0)
+and UDim2.new(1, -x - rw, 0, 18)
+or UDim2.new(1, -x - rw, 1, 0)
 if hasDesc then
 new("TextLabel", {
 Text = desc,
@@ -65,7 +66,7 @@ TextXAlignment = Enum.TextXAlignment.Left,
 BackgroundTransparency = 1,
 TextTruncate = Enum.TextTruncate.AtEnd,
 Position = UDim2.new(0, x, 0, 31),
-Size = UDim2.new(1, -x - 130, 0, 16),
+Size = UDim2.new(1, -x - rw, 0, 16),
 Parent = row,
 Theme = {
 TextColor3 = "SubText",
@@ -459,7 +460,7 @@ function Section:CreateToggle(opt)
 opt = opt or {}
 local state = opt.Default and true or false
 local row = rowBase(self, ROW_H)
-rowLabel(row, opt.Icon, opt.Name or "Toggle", opt.Description)
+rowLabel(row, opt.Icon, opt.Name or "Toggle", opt.Description, 64)
 local track_ = new("TextButton", {
 Text = "",
 AutoButtonColor = false,
@@ -644,8 +645,11 @@ BackgroundColor3 = "Elevated",
 })
 corner(box, CTRL_R)
 stroke(box)
+box.ClipsDescendants = true
 local tb = new("TextBox", {
-Text = opt.Default or "",
+Text = tostring(opt.Default or ""),
+ClipsDescendants = true,
+TextTruncate = Enum.TextTruncate.AtEnd,
 PlaceholderText = opt.Placeholder or "Type here...",
 Font = Enum.Font.Gotham,
 TextSize = 12,
@@ -668,8 +672,11 @@ end)
 return {
 Instance = row,
 TextBox = tb,
-Set = function(_, v)
-tb.Text = v
+Set = function(_, v, silent)
+tb.Text = tostring(v or "")
+if not silent and opt.Callback then
+task.spawn(opt.Callback, tb.Text, false)
+end
 end,
 Get = function()
 return tb.Text
@@ -702,6 +709,7 @@ Text = tostring(selected),
 Font = Enum.Font.GothamMedium,
 TextSize = 12,
 TextXAlignment = Enum.TextXAlignment.Left,
+TextTruncate = Enum.TextTruncate.AtEnd,
 BackgroundTransparency = 1,
 Position = UDim2.new(0, 12, 0, 0),
 Size = UDim2.new(1, -34, 1, 0),
@@ -1045,6 +1053,7 @@ Text = opt.Name or "Action",
 Font = Enum.Font.GothamBold,
 TextSize = 13,
 TextXAlignment = Enum.TextXAlignment.Left,
+TextTruncate = Enum.TextTruncate.AtEnd,
 BackgroundTransparency = 1,
 Position = UDim2.new(0, 48, 0, 0),
 Size = UDim2.new(1, -60, 1, 0),
@@ -1148,6 +1157,7 @@ BackgroundTransparency = 1,
 Position = UDim2.new(0, 58, 0, 32),
 Size = UDim2.new(1, -70, 0, 28),
 TextWrapped = true,
+ClipsDescendants = true,
 TextYAlignment = Enum.TextYAlignment.Top,
 Parent = card,
 Theme = {
