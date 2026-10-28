@@ -5,6 +5,7 @@ local Guard = S.Guard
 local new, corner, stroke, shine, ledBackdrop, glass, pad, list = S.new, S.corner, S.stroke, S.shine, S.ledBackdrop, S.glass, S.pad, S.list
 local tween, hoverable, playClickSound, ripple, iconLabel, iconButton, makeScreenGui, clampedPosition = S.tween, S.hoverable, S.playClickSound, S.ripple, S.iconLabel, S.iconButton, S.makeScreenGui, S.clampedPosition
 local makeDraggable, Visualizer, Section = S.makeDraggable, S.Visualizer, S.Section
+local glassHover = S.glassHover
 local Tab = {}
 Tab.__index = Tab
 function Tab:CreateSection(title)
@@ -274,12 +275,13 @@ Size = UDim2.new(0, 0, 0, 28),
 AutomaticSize = Enum.AutomaticSize.X,
 BorderSizePixel = 0,
 Parent = detect,
-Theme = {
-BackgroundColor3 = "Hover",
-},
 })
-corner(c, 8)
-stroke(c, "Stroke", 1)
+corner(c, 12)
+glass(c)
+if order == 1 and glassHover then
+glassHover(c)
+ripple(c)
+end
 local pad = new("UIPadding", { Parent = c })
 pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 10), UDim.new(0, 10)
 local l = list(c, Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Left)
@@ -310,7 +312,7 @@ if n then execName = tostring(n) end
 end
 end)
 local execCard, execLbl = detectCard(0)
-execLbl("Executor", Enum.Font.Gotham, "Dim", 0)
+execLbl("Executor", Enum.Font.Gotham, "SubText", 0)
 self.executorLabel = execLbl(execName, Enum.Font.GothamBold, "Text", 1)
 local discordLink = cfg.Discord or cfg.DiscordInvite or ""
 if discordLink ~= "" and not discordLink:find("://") then
@@ -319,12 +321,6 @@ end
 local dcCard, dcLbl = detectCard(1)
 local dcText = dcLbl("Discord", Enum.Font.GothamBold, "Text", 0)
 local dcBusy = false
-dcCard.MouseEnter:Connect(function()
-tween(dcCard, 0.14, { BackgroundColor3 = Ui.CurrentTheme.Stroke })
-end)
-dcCard.MouseLeave:Connect(function()
-tween(dcCard, 0.14, { BackgroundColor3 = Ui.CurrentTheme.Hover })
-end)
 dcCard.MouseButton1Click:Connect(function()
 if dcBusy then return end
 playClickSound()
